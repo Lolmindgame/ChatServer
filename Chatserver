@@ -1,0 +1,156 @@
+import javax.print.DocFlavor;
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.io.*;
+import java.net.ServerSocket;
+import java.net.Socket;
+
+/**
+ * Created by Jerry Xie on 5/28/2016.
+ */
+public class ChatServer extends JFrame {
+   public ObjectOutputStream output; //moves out from you
+    public  ObjectInputStream input; // recives string
+    public ServerSocket serverSocket; // the server
+    public JTextField jTextField; // the display
+    public  JTextArea chattext; // the editable text
+    public Socket socket; // the connection
+
+
+    public ChatServer(){
+
+        jTextField = new JTextField();
+        jTextField.setEditable(false);
+        jTextField.addActionListener(new ActionListener() {        //sents the message
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                SendMessage(e.getActionCommand());
+                jTextField.setText("");     //after sents the text it clears out
+            }
+        });
+        add(jTextField, BorderLayout.SOUTH);
+        chattext = new JTextArea();
+        add(new JScrollPane(chattext));
+        setResizable(false);
+        setTitle("Imessage");
+        setSize(500,500);
+        setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+        setVisible(true);
+        chattext.setEditable(false);
+    }
+
+    //set up and run server
+
+    public void StartRunning(){
+        try{
+            serverSocket = new ServerSocket(6789,100);
+            while (true){
+                try{
+                    waitforConnection();
+                    setupStream();
+                    WhileChatting();
+                }
+                //connect and have chat
+                catch (EOFException eofExeption){
+                    showmessage("\n server ended the connection! ");
+                }finally {
+                    closeEverything();
+                }
+            }
+        }
+        catch (IOException ioerror){
+            ioerror.printStackTrace();
+        }
+    }
+
+    // wait for connection
+    private void waitforConnection () throws IOException{
+        showmessage("Waitting for someone to connect...\n");
+        socket = serverSocket.accept();
+        showmessage("Now connected to "+socket.getInetAddress().getHostName());
+
+    }
+
+    //get stream to send and receive data
+    private void setupStream() throws IOException{
+        output = new ObjectOutputStream(socket.getOutputStream());
+        output.flush();
+        input = new ObjectInputStream(socket.getInputStream());
+        showmessage("\n Streams are now setup \n");
+
+    }
+    private void WhileChatting( )throws IOException{
+        String message = "You are now connected ";
+        SendMessage(message);
+        abletotype(true);
+        do {
+            try{
+                message=(String) input.readObject();
+                showmessage("\n " + message);
+            }catch (ClassNotFoundException classNOTFOUND){
+                showmessage("\n UNKNOW");
+            }
+        }
+            // have a chat
+            while (!message.equals("CLIENT - END"));{
+
+        }
+    }
+    private void closeEverything(){
+        showmessage("\n closing connection... \n");
+        abletotype(false);
+        try{
+            output.close();
+            input.close();
+            socket.close();
+        }catch (IOException ioerror){
+            ioerror.printStackTrace();
+        }
+    }
+    // sent message to client
+
+    private void SendMessage(String Message){
+        try{
+            output.writeObject("Jerry : " + Message);
+            output.flush();
+            showmessage("\n Jerry : " + Message);
+        }catch (IOException ioerror){
+            chattext.append("\n I can't sent that message ");
+        }
+    }
+    // update chat
+    private void showmessage(final String text){
+        SwingUtilities.invokeLater( // updates only the message part
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        chattext.append(text);
+                    }
+                }
+        );
+
+    }
+    //let the user to type
+    private void abletotype(final boolean tof){
+        SwingUtilities.invokeLater( // updates only the message part
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        jTextField.setEditable(tof);
+                    }
+                }
+        );}
+
+
+
+
+
+
+public static void main(String arg[]){
+    ChatServer chatServer = new ChatServer();
+    chatServer.StartRunning();
+}
+
+}
