@@ -1,0 +1,127 @@
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.io.EOFException;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.net.InetAddress;
+import java.net.Socket;
+
+/**
+ * Created by Jerry Xie on 5/30/2016.
+ */
+public class ClientServer extends JFrame {
+    private JTextField jTextField;
+    private JTextArea jTextArea;
+    private ObjectInputStream objectInputStream;
+    private ObjectOutputStream objectOutputStream;
+    private String Message;
+    private String serverIP;
+    private Socket socket;
+    public ClientServer(String host){
+        setTitle("Client ");
+        serverIP = host;
+        jTextField = new JTextField();
+        jTextField.setEditable(true);
+        jTextField.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                sendData(e.getActionCommand());
+                jTextField.setText("");
+            }
+        });
+        add(jTextField, BorderLayout.SOUTH);
+        jTextArea = new JTextArea();
+        add(new JScrollPane(jTextArea),BorderLayout.CENTER);
+
+        jTextArea.setEditable(false);
+
+
+    }
+
+    public void  StartRunning(){
+        try{
+            connecToServer();
+            SetUpStream();
+            WhileChatting();
+        }catch (EOFException end){ // when the chat ended
+            showMessage("\n Chat ended! ");
+
+        }catch (IOException end){
+            end.printStackTrace();
+        }finally {
+            try {
+                closeeverthing();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    //connect to Server
+
+    private void connecToServer() throws IOException{
+        showMessage("\n trying to connecting... \n");
+        socket = new Socket(InetAddress.getByName(serverIP),6789);
+        showMessage("Connected to : " + socket.getInetAddress().getHostName());
+
+    }
+    private void SetUpStream() throws IOException{
+        objectOutputStream = new ObjectOutputStream(socket.getOutputStream());
+        objectOutputStream.flush();
+        objectInputStream = new ObjectInputStream(socket.getInputStream());
+        showMessage("Good to GO");
+    }
+
+    private void WhileChatting() throws IOException{
+        abletotype(true);
+        do {
+            try{
+                    Message = (String) objectInputStream.readObject();
+                showMessage("\n " + Message);
+            }catch (ClassNotFoundException end){
+                showMessage("\n ERROR");
+            }
+
+        }while (!Message.equals("SERVER - END"));
+    }
+    private void closeeverthing() throws  IOException{
+        showMessage("\n Closing down");
+        abletotype(false);
+        objectInputStream.close();
+        objectOutputStream.close();
+        socket.close();
+
+
+    }
+
+    private void  sendData (String Message){
+        try{
+            objectOutputStream.writeObject("Client " + Message);
+            objectOutputStream.flush();
+            showMessage("\n Client " + Message);
+        }catch (IOException error){
+            jTextArea.append("Opps mess up");
+        }
+    }
+
+    private void showMessage(final String M){
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                jTextArea.append(M);
+            }
+        });
+    }
+
+    private void abletotype (final boolean tof){
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                jTextArea.setEditable(tof);
+            }
+        });
+    }
+}
